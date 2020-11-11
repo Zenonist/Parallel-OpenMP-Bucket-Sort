@@ -4,13 +4,18 @@
 
 
 int cmpfunc (const void * a, const void * b) {
-   return ( *(int*)a - *(int*)b );
+    // If it is -1 means a < b
+    // If it is 0 means a == b
+    // If it is 1 means a > b
+    return ( *(int*)a - *(int*)b );
 }
 
 int main(){
     int Nchoice , N, NoOfThreads;
+    // ! User choose the size of the array
     printf("Enter the number of threads (1. N = 10000, 2. N = 100000, 3. N = 1000000): ");
     scanf("%d" , &Nchoice);
+    // If User choose the wrong choice then set amount of array as -1 for avoiding the error
     if (Nchoice == 1){
         N = 10000;
     }else if (Nchoice == 2){
@@ -20,104 +25,83 @@ int main(){
     }else{
         N = -1;
     }
+    // ! User choose the amount of threads
     printf("Enter the amount of threads to process: ");
     scanf("%d",&NoOfThreads);
+    // If Thread is equal to 0 then set as -1 for avoiding the error
     if (NoOfThreads <=  0){
         NoOfThreads = -1;
     }
+    // If Thread equals to -1 and Size of array equal to -1 then stop running the code
     if (N != -1 && NoOfThreads != -1){
+        //Create array to sort the unsortedarray
         int unsortedarray[N];
+        //Put the random number into the array
         for (int x = 0;x < N;x++){
             unsortedarray[x] = rand() % 10000;
         }
-        static int* temparray;
-        temparray = (int*)malloc(N * sizeof(int));
-        int count;
+        //Create the array size of N [The one that user chooses]
+        // * We use this because we can't declare array with size of 1 million
+        static int* sortedarray;
+        sortedarray = (int*)malloc(N * sizeof(int));
+        // This array uses to store the amount of elements in each bucket
         int indexing[NoOfThreads];
-        FILE *fptr;
-        fptr = fopen("result.txt","w");
-        if (fptr == NULL){
-            printf("ERROR!");
-        }
-        fprintf(fptr,"Array size = %d, Amount of threads = %d\n",N,NoOfThreads);
+        // This array uses to store start time of each process
         double wtime[NoOfThreads];
+        //Start the parallel step
         #pragma omp parallel shared(indexing,wtime) num_threads(NoOfThreads) 
         {
-            
+            // Variable to store if of process
             int tid = omp_get_thread_num();
+            // Get the start time of each process then store it in array
             double starttime = omp_get_wtime();
             wtime[tid] = starttime;
+            // Calculate the number that each process or bucket should take in
             int start = tid * (10000 / NoOfThreads);
             int end;
-            int array[N];
-            int index = 0;
             if (tid == NoOfThreads - 1){
                 end = (tid + 1) * (10000 / NoOfThreads);
             }else{
                 end = (tid + 1) * (10000 / NoOfThreads) - 1;
             }
-            
-            //printf("%d %d %d \n",start,end,tid);
+            // Create the local array to store the number for sorting.
+            int array[N];
+            // The variable that stores the index that process should start putting in the sortedarray
+            int index = 0;
+            // Variable that stores the number of elements in the bucket
             int i = 0;
+            // Private variable and array to keep those things separate from each thread
             #pragma omp private(i,array)
-                
+                // Transfer the element from unsortedarray to local array[Private array of each thread] based on the start and end of each thread
                 for (int ax = 0; ax < N; ax++){
                     if (unsortedarray[ax] >= start && unsortedarray[ax] <= end){
                         array[i] = unsortedarray[ax];
-                        //printf("%d-%d \n",array[i],tid);
                         i++;
                     }
                 }
-                
-                //printf("*%d %d*\n",i,tid);
-            
-                /*for (int ay = i;ay < N;ay++){
-                    //printf("*%d-%d* \n",ay,tid);
-                    array[ay] = 99999;  
-                    //printf("%d-%d-%d \n",array[ay],ay,tid);
-                }*/
-                
-                /*for (int x = 0; x < i; x++){
-                    printf("%d-%d-%d-%d \n",array[x],x,i,tid);
-                }*/
+            // Put the amount of elements in the bucket to the indexing array for calculating the index of each thread
             indexing[tid] = i;
-            #pragma omp barrier
-                /*int temp = -1;
-                int count = 0;
-                for (int x = 0; x < i - 1; x++){
-                    for (int y = x + 1; y < i; y++){
-                        if (array[x] > array[y]){
-                            temp = array[x];
-                            array[x] = array[y];
-                            array[y] = temp;
-                        }
-                        count++;
-                        printf("%d-%d**\n",count,tid);
-                    }
-                }*/
-                qsort(array,i,sizeof(int),cmpfunc);
-
-            //printf("test**\n");
+            // Sort the local array by using quick sort function [libray function]
+            qsort(array,i,sizeof(int),cmpfunc);
+            // Calculate the index that each thread should start putting their elements into the sorted array
             for (int x = 0; x < tid;x++){
                 index = index + indexing[x];
             }
-            //printf("%d-%d-%d\n",index,i,tid);
+            // Variable to get the element of local array
             int count = 0;
-            //temparray[0] = -2;
-            //printf("%d",temparray[0]);
+            // Private the variable count to keep it separate from each other
             #pragma omp private(count) 
                 for (int x = index; x < index + i;x++){
                     //printf("**%d-%d-%d-%d-%d**\n",x,count,index,index + i,tid);
-                    temparray[x] = array[count];
+                    sortedarray[x] = array[count];
                     count++;
                 }
+            // Get the finish time of that time
             double endtime = omp_get_wtime();
+            // Calculate the used time of each threat and replace it in the array
             wtime[tid] = endtime - wtime[tid];
         }
-        for (int x = 0; x < N;x++){
-            printf("%d ", temparray[x]);
-            fprintf(fptr,"%d\n",temparray[x]);
-        }
+        // Print out the time of each process [Avg and Total time]
         float avg_time = 0;
         float finished_time = 0;
         printf("\nArray size = %d, Amount of threads = %d\n",N, NoOfThreads);
@@ -130,7 +114,6 @@ int main(){
         }
         printf("avg_time = %f seconds\n", avg_time / NoOfThreads);
         printf("finished_time = %f seconds\n", finished_time);
-        fclose(fptr);
     }else{
         printf("Error: Invalid Input\n");
     }
