@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-
 int cmpfunc (const void * a, const void * b) {
     // If it is -1 means a < b
     // If it is 0 means a == b
@@ -10,9 +9,10 @@ int cmpfunc (const void * a, const void * b) {
     return ( *(int*)a - *(int*)b );
 }
 
+
 int main(){
     int Nchoice , N, NoOfThreads;
-    // ! User choose the size of the array
+    // User choose the size of the array
     printf("Enter the number of threads (1. N = 10000, 2. N = 100000, 3. N = 1000000): ");
     scanf("%d" , &Nchoice);
     // If User choose the wrong choice then set amount of array as -1 for avoiding the error
@@ -25,7 +25,7 @@ int main(){
     }else{
         N = -1;
     }
-    // ! User choose the amount of threads
+    // User choose the amount of threads
     printf("Enter the amount of threads to process: ");
     scanf("%d",&NoOfThreads);
     // If Thread is equal to 0 then set as -1 for avoiding the error
@@ -40,8 +40,8 @@ int main(){
         for (int x = 0;x < N;x++){
             unsortedarray[x] = rand() % 10000;
         }
-        //Create the array size of N [The one that user chooses]
-        // * We use this because we can't declare array with size of 1 million
+        // Create the array size of N [The one that user chooses]
+        // We use this because we can't declare array with size of 1 million
         static int* sortedarray;
         sortedarray = (int*)malloc(N * sizeof(int));
         // This array uses to store the amount of elements in each bucket
@@ -81,8 +81,10 @@ int main(){
                 }
             // Put the amount of elements in the bucket to the indexing array for calculating the index of each thread
             indexing[tid] = i;
-            // Sort the local array by using quick sort function [libray function]
-            qsort(array,i,sizeof(int),cmpfunc);
+            // Use barrier to make all threads wait for each other
+            #pragma omp barrier
+                // Sort the local array by using quick sort function [libray function]
+                qsort(array,i,sizeof(int),cmpfunc);
             // Calculate the index that each thread should start putting their elements into the sorted array
             for (int x = 0; x < tid;x++){
                 index = index + indexing[x];
@@ -114,7 +116,9 @@ int main(){
         }
         printf("avg_time = %f seconds\n", avg_time / NoOfThreads);
         printf("finished_time = %f seconds\n", finished_time);
+        return 0;
     }else{
         printf("Error: Invalid Input\n");
+        return 0;
     }
 }
